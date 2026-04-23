@@ -61,6 +61,17 @@ function renderDoneCard(course) {
 function renderStep1(course) {
   const hasParsed = course.categories.length > 0;
 
+  const scaleEntries = Object.entries(course.gradingScale || {})
+    .sort((a, b) => b[1] - a[1]);
+  const scaleHtml = scaleEntries.length > 0
+    ? `<div class="section-label" style="margin-top:1rem">Grading Scale (from syllabus)</div>
+       <div class="scale-chips">
+         ${scaleEntries.map(([g, min]) => `<span class="scale-chip">${escHtml(g)} ≥ ${min}%</span>`).join('')}
+       </div>`
+    : `<div class="section-label" style="margin-top:1rem;color:#c5221f">
+         No grading scale found — default A≥90, B≥80, C≥70, D≥60 will be used
+       </div>`;
+
   const reviewHtml = hasParsed ? `
     <div class="parsed-result">
       <div class="section-label">Parsed Categories — Confirm before continuing</div>
@@ -74,6 +85,7 @@ function renderStep1(course) {
             </tr>`).join('')}
         </tbody>
       </table>
+      ${scaleHtml}
       <div class="action-row" style="margin-top:1rem">
         <button class="btn btn-secondary" onclick="resetParse('${course.id}')">Re-parse</button>
         <button class="btn btn-primary" onclick="confirmCategories('${course.id}')">
@@ -434,11 +446,14 @@ async function doCalculateGrade(courseId) {
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Calculating...'; }
 
   try {
+    const scale = (Object.keys(course.gradingScale || {}).length > 0)
+      ? course.gradingScale
+      : { A: 90, B: 80, C: 70, D: 60 };
     const data = await apiCall('/api/grade/calculate', {
       sessionId: state.sessionId,
       courseName: course.name || 'Unknown Course',
       categories: course.categories,
-      gradingScale: course.gradingScale
+      gradingScale: scale
     });
     course.finalGrade = data.letterGrade;
     course.gpaPoints = data.gpaPoints;

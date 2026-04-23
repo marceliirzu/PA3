@@ -40,7 +40,7 @@ public class ClaudeService : IClaudeService
             MaxTokens = 1024,
             System = new List<SystemMessage>
             {
-                new SystemMessage("You are a syllabus parser. Extract grading information and return ONLY valid JSON. No markdown, no explanation. Return exactly this structure: {\"courseName\": \"string\", \"gradingScale\": {\"A\": 90, \"B\": 80, \"C\": 70, \"D\": 60}, \"categories\": [{\"name\": \"string\", \"weight\": 0.XX}]}. Weights must sum to 1.0.")
+                new SystemMessage("You are a syllabus parser. Extract grading information and return ONLY valid JSON. No markdown, no explanation.\n\nReturn exactly this structure:\n{\"courseName\": \"string\", \"gradingScale\": {\"A\": 90, \"B\": 80, \"C\": 70, \"D\": 60}, \"categories\": [{\"name\": \"string\", \"weight\": 0.XX}]}\n\nRules:\n- gradingScale MUST come from the syllabus text. Extract the actual letter grade cutoffs (e.g. A=93, A-=90, B+=87). If the syllabus uses +/- grades include them. If no scale is found, use the standard {\"A\":90,\"B\":80,\"C\":70,\"D\":60}.\n- gradingScale keys are letter grades, values are minimum percentages (numbers, not strings).\n- category weights must sum to 1.0.\n- Weights must be decimals (0.40 not 40).")
             },
             Messages = new List<Message>
             {
