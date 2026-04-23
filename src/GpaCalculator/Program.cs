@@ -50,11 +50,16 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Ensure DB is created
-using (var scope = app.Services.CreateScope())
+// Ensure DB is created (non-fatal — app still starts if MySQL isn't ready yet)
+try
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning("DB EnsureCreated failed: {Message}", ex.Message);
 }
 
 if (app.Environment.IsDevelopment())
@@ -63,7 +68,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseStaticFiles();
+// CORS must come before routing/controllers
+app.UseRouting();
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
 
