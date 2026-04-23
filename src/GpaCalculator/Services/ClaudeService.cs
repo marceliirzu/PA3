@@ -115,7 +115,27 @@ public class ClaudeService : IClaudeService
         var tools = new List<CT> { new CT(fn) };
 
         var categoriesJson = JsonSerializer.Serialize(categories, _jsonOpts);
-        var userMessage = $"Given these grading categories: {categoriesJson}\n\nMap the following raw scores to their categories:\n<scores>\n{rawScoresText}\n</scores>\n\nCall map_scores_to_categories with your mappings.";
+        var categoryNames = string.Join(", ", categories.Select(c => $"\"{c.Name}\""));
+        var userMessage = $"""
+You are mapping student scores to grading categories. The categories are:
+{categoriesJson}
+
+Rules — follow EXACTLY:
+1. Use the EXACT category names listed above (copy spelling, capitalization, spaces).
+2. For each category, sum ALL matching earned points and ALL matching total points from the scores below.
+   Example: if "Exams" has Exam1=88/100 and Exam2=92/100 → earnedPoints=180, totalPoints=200.
+3. If a category name implies ranking (e.g. "Highest Exam Score", "Second Highest Exam Score", "Third Highest Exam Score"),
+   collect all scores of that type, sort descending by percentage, and assign them in order.
+4. Every category in [{categoryNames}] MUST appear in your output. If no scores match, use earnedPoints=0, totalPoints=0.
+5. Do NOT invent new category names.
+
+Scores:
+<scores>
+{rawScoresText}
+</scores>
+
+Call map_scores_to_categories now.
+""";
 
         var messages = new List<Message>
         {

@@ -216,8 +216,12 @@ async function mapScores(courseId) {
     });
     if (data.mappedScores) {
       course.categories = course.categories.map(cat => {
-        const mapped = data.mappedScores.find(m => m.name === cat.name);
-        if (mapped) {
+        const norm = s => s.toLowerCase().trim();
+        // Exact match first, then case-insensitive, then partial
+        let mapped = data.mappedScores.find(m => m.name === cat.name)
+          || data.mappedScores.find(m => norm(m.name) === norm(cat.name))
+          || data.mappedScores.find(m => norm(m.name).includes(norm(cat.name)) || norm(cat.name).includes(norm(m.name)));
+        if (mapped && (mapped.earnedPoints > 0 || mapped.totalPoints > 0)) {
           return { ...cat, earnedPoints: mapped.earnedPoints, totalPoints: mapped.totalPoints };
         }
         return cat;
