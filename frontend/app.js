@@ -39,10 +39,10 @@ function renderCourses() {
                 <td>${(cat.weight * 100).toFixed(0)}%</td>
                 <td><input class="score-input" type="number" min="0" value="${cat.earnedPoints || ''}"
                     placeholder="0"
-                    onchange="updateCategoryScore('${course.id}', ${ci}, 'earnedPoints', this.value)" /></td>
+                    oninput="updateCategoryScore('${course.id}', ${ci}, 'earnedPoints', this.value)" /></td>
                 <td><input class="score-input" type="number" min="0" value="${cat.totalPoints || ''}"
                     placeholder="100"
-                    onchange="updateCategoryScore('${course.id}', ${ci}, 'totalPoints', this.value)" /></td>
+                    oninput="updateCategoryScore('${course.id}', ${ci}, 'totalPoints', this.value)" /></td>
               </tr>`).join('')}
           </tbody>
         </table>`
@@ -177,7 +177,7 @@ async function parseSyllabus(courseId) {
       name: c.name,
       weight: c.weight,
       earnedPoints: 0,
-      totalPoints: 0
+      totalPoints: 100
     }));
     if (data.courseName && !course.name) course.name = data.courseName;
   } catch (err) {
@@ -242,6 +242,18 @@ async function calculateGrade(courseId) {
     renderCourses();
     return;
   }
+
+  // Sync any unsaved input values from DOM before submitting
+  course.categories.forEach((cat, ci) => {
+    const card = document.getElementById(`card-${courseId}`);
+    if (!card) return;
+    const rows = card.querySelectorAll('.categories-table tbody tr');
+    if (rows[ci]) {
+      const inputs = rows[ci].querySelectorAll('input');
+      if (inputs[0]) cat.earnedPoints = parseFloat(inputs[0].value) || 0;
+      if (inputs[1]) cat.totalPoints = parseFloat(inputs[1].value) || 100;
+    }
+  });
 
   setLoading(`calc-btn-${courseId}`, true);
   try {
