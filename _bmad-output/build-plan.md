@@ -282,26 +282,26 @@
 
 - [x] **13.1** Set env vars locally: `CLAUDE_API_KEY` and `MYSQL_CONNECTION_STRING` — set in Railway dashboard (production env)
 - [x] **13.2** Run `dotnet build` from `src/GpaCalculator/` — 0 errors confirmed
-- [ ] **13.3** Run `dotnet run` — API starts on port 5000 (requires CLAUDE_API_KEY)
-- [ ] **13.4** Open `frontend/index.html` directly in browser (set `API_BASE = 'http://localhost:5000'`)
-- [ ] **13.5** End-to-end test:
+- [x] **13.3** Run `dotnet run` — API starts on port 5000 (requires CLAUDE_API_KEY)
+- [x] **13.4** Open `frontend/index.html` directly in browser (set `API_BASE = 'http://localhost:5000'`)
+- [x] **13.5** End-to-end test:
   1. Add a class
   2. Paste a real syllabus → Parse → categories appear with weights
   3. Paste mock scores → Map Scores → points fill in
   4. Calculate Grade → letter grade + GPA points appear
   5. Add a second class, repeat → semester GPA averages correctly
-- [ ] **13.6** Confirm all 4 API endpoints return correct shapes (check via browser DevTools network tab)
+- [x] **13.6** Confirm all 4 API endpoints return correct shapes (check via browser DevTools network tab)
 
 ---
 
 ## Done Criteria
 
 - [x] `dotnet build` passes with 0 errors
-- [ ] All 4 API endpoints respond correctly in Swagger
-- [ ] Syllabus parsing returns structured categories with correct weights
-- [ ] Score mapping correctly assigns scores to categories
-- [ ] Grade calculation uses all 3 Claude tools and returns correct GPA points
-- [ ] Frontend displays semester GPA and updates on every change
-- [ ] GitHub Actions workflow deploys frontend to `https://marceliirzu.github.io/PA3/`
-- [ ] Railway backend is live and CORS allows GitHub Pages origin
-- [ ] End-to-end works from GitHub Pages → Railway → MySQL → Claude → back
+- [x] All 4 API endpoints respond correctly in Swagger
+- [x] Syllabus parsing returns structured categories with correct weights
+- [x] Score mapping correctly assigns scores to categories
+- [x] Grade calculation uses all 3 Claude tools and returns correct GPA points
+- [x] Frontend displays semester GPA and updates on every change
+- [x] GitHub Actions workflow deploys frontend to `https://marceliirzu.github.io/PA3/`
+- [x] Railway backend is live and CORS allows GitHub Pages origin
+- [x] End-to-end works from GitHub Pages → Railway → MySQL → Claude → back
