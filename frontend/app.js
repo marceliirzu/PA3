@@ -16,85 +16,6 @@ function gradeBadgeClass(grade) {
   return 'grade-f';
 }
 
-function renderCourses() {
-  const container = document.getElementById('courses-container');
-  if (state.courses.length === 0) {
-    container.innerHTML = '<div class="empty-state">No courses yet. Click "+ Add Class" to get started.</div>';
-    return;
-  }
-
-  container.innerHTML = state.courses.map(course => {
-    const gradeLabel = course.finalGrade
-      ? `${course.finalGrade} | ${course.gpaPoints !== null ? course.gpaPoints.toFixed(1) : '--'}`
-      : '--';
-    const badgeClass = gradeBadgeClass(course.finalGrade);
-
-    const categoriesHtml = course.categories.length > 0
-      ? `<table class="categories-table">
-          <thead><tr><th>Category</th><th>Weight</th><th>Earned</th><th>Total</th></tr></thead>
-          <tbody>
-            ${course.categories.map((cat, ci) => `
-              <tr>
-                <td>${escHtml(cat.name)}</td>
-                <td>${(cat.weight * 100).toFixed(0)}%</td>
-                <td><input class="score-input" type="number" min="0" value="${cat.earnedPoints || ''}"
-                    placeholder="0"
-                    oninput="updateCategoryScore('${course.id}', ${ci}, 'earnedPoints', this.value)" /></td>
-                <td><input class="score-input" type="number" min="0" value="${cat.totalPoints || ''}"
-                    placeholder="100"
-                    oninput="updateCategoryScore('${course.id}', ${ci}, 'totalPoints', this.value)" /></td>
-              </tr>`).join('')}
-          </tbody>
-        </table>`
-      : '<div class="empty-state">Parse a syllabus to see categories here.</div>';
-
-    return `
-      <div class="course-card" id="card-${course.id}">
-        <div class="course-card-header">
-          <input class="course-name-input" type="text" placeholder="Course Name (e.g. MIS 321)"
-            value="${escHtml(course.name)}"
-            oninput="updateCourseName('${course.id}', this.value)" />
-          <span class="grade-badge ${badgeClass}">${gradeLabel}</span>
-          <button class="remove-btn" onclick="removeCourse('${course.id}')" title="Remove course">&times;</button>
-        </div>
-        <div class="course-card-body">
-          <div>
-            <div class="section-label">Syllabus</div>
-            <textarea class="syllabus-area" id="syllabus-${course.id}"
-              placeholder="Paste your course syllabus text here...">${escHtml(course.syllabusText || '')}</textarea>
-            <div class="action-row" style="margin-top:0.5rem">
-              <button class="btn btn-secondary" id="parse-btn-${course.id}" onclick="parseSyllabus('${course.id}')">
-                Parse Syllabus
-              </button>
-            </div>
-            ${course.parseError ? `<div class="error-msg">${escHtml(course.parseError)}</div>` : ''}
-          </div>
-
-          <div>
-            <div class="section-label">Categories &amp; Scores</div>
-            ${categoriesHtml}
-          </div>
-
-          <div>
-            <div class="section-label">Gradebook Scores</div>
-            <textarea class="scores-area" id="scores-${course.id}"
-              placeholder="Paste raw score data (e.g. Exam 1: 88/100, HW1: 45/50)...">${escHtml(course.scoresText || '')}</textarea>
-            <div class="action-row" style="margin-top:0.5rem">
-              <button class="btn btn-secondary" id="map-btn-${course.id}" onclick="mapScores('${course.id}')">
-                Map Scores
-              </button>
-              <button class="btn btn-success" id="calc-btn-${course.id}" onclick="calculateGrade('${course.id}')">
-                Calculate Grade
-              </button>
-            </div>
-            ${course.scoresError ? `<div class="error-msg">${escHtml(course.scoresError)}</div>` : ''}
-            ${course.calcError ? `<div class="error-msg">${escHtml(course.calcError)}</div>` : ''}
-          </div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
 function escHtml(str) {
   if (!str) return '';
   return String(str)
@@ -104,10 +25,148 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// ── Rendering ────────────────────────────────────────────────────────────────
+
+function renderCourses() {
+  const container = document.getElementById('courses-container');
+  if (state.courses.length === 0) {
+    container.innerHTML = '<div class="empty-state">No courses yet. Click "+ Add Class" to get started.</div>';
+    return;
+  }
+  container.innerHTML = state.courses.map(renderCourse).join('');
+}
+
+function renderCourse(course) {
+  if (course.finalGrade !== null) return renderDoneCard(course);
+  if (course.step === 1) return renderStep1(course);
+  if (course.step === 2) return renderStep2(course);
+  return '';
+}
+
+function renderDoneCard(course) {
+  const badgeClass = gradeBadgeClass(course.finalGrade);
+  return `
+    <div class="course-card done-card" id="card-${course.id}">
+      <div class="course-card-header">
+        <span class="course-name-display">${escHtml(course.name || 'Unnamed Course')}</span>
+        <span class="grade-badge ${badgeClass}">
+          ${escHtml(course.finalGrade)} &nbsp;|&nbsp; ${course.gpaPoints !== null ? Number(course.gpaPoints).toFixed(1) : '--'} GPA pts
+        </span>
+        <button class="btn btn-sm btn-secondary" onclick="editCourse('${course.id}')">Edit</button>
+        <button class="remove-btn" onclick="removeCourse('${course.id}')" title="Remove">&times;</button>
+      </div>
+    </div>`;
+}
+
+function renderStep1(course) {
+  const hasParsed = course.categories.length > 0;
+
+  const reviewHtml = hasParsed ? `
+    <div class="parsed-result">
+      <div class="section-label">Parsed Categories — Confirm before continuing</div>
+      <table class="categories-table">
+        <thead><tr><th>Category</th><th>Weight</th></tr></thead>
+        <tbody>
+          ${course.categories.map(cat => `
+            <tr>
+              <td>${escHtml(cat.name)}</td>
+              <td>${(cat.weight * 100).toFixed(0)}%</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="action-row" style="margin-top:1rem">
+        <button class="btn btn-secondary" onclick="resetParse('${course.id}')">Re-parse</button>
+        <button class="btn btn-primary" onclick="confirmCategories('${course.id}')">
+          Looks Good — Enter Grades &rarr;
+        </button>
+      </div>
+    </div>` : '';
+
+  return `
+    <div class="course-card" id="card-${course.id}">
+      <div class="course-card-header">
+        <input class="course-name-input" type="text" placeholder="Course Name (e.g. MIS 321)"
+          value="${escHtml(course.name)}"
+          oninput="updateCourseName('${course.id}', this.value)" />
+        <span class="step-badge">Step 1 of 2</span>
+        <button class="remove-btn" onclick="removeCourse('${course.id}')" title="Remove">&times;</button>
+      </div>
+      <div class="course-card-body">
+        <div>
+          <div class="section-label">Paste your syllabus</div>
+          <textarea class="syllabus-area" id="syllabus-${course.id}"
+            placeholder="Paste your full course syllabus here...">${escHtml(course.syllabusText || '')}</textarea>
+          <div class="action-row" style="margin-top:0.5rem">
+            <button class="btn btn-secondary" id="parse-btn-${course.id}"
+              onclick="parseSyllabus('${course.id}')">Parse Syllabus</button>
+          </div>
+          ${course.parseError ? `<div class="error-msg">${escHtml(course.parseError)}</div>` : ''}
+        </div>
+        ${reviewHtml}
+      </div>
+    </div>`;
+}
+
+function renderStep2(course) {
+  return `
+    <div class="course-card" id="card-${course.id}">
+      <div class="course-card-header">
+        <span class="course-name-display">${escHtml(course.name || 'Unnamed Course')}</span>
+        <span class="step-badge">Step 2 of 2</span>
+        <button class="remove-btn" onclick="removeCourse('${course.id}')" title="Remove">&times;</button>
+      </div>
+      <div class="course-card-body">
+
+        <div>
+          <div class="section-label">Review &amp; Enter Scores</div>
+          <table class="categories-table">
+            <thead><tr><th>Category</th><th>Weight</th><th>Earned</th><th>Total</th></tr></thead>
+            <tbody>
+              ${course.categories.map((cat, ci) => `
+                <tr>
+                  <td>${escHtml(cat.name)}</td>
+                  <td>${(cat.weight * 100).toFixed(0)}%</td>
+                  <td><input class="score-input" type="number" min="0"
+                      value="${cat.earnedPoints > 0 ? cat.earnedPoints : ''}"
+                      placeholder="0"
+                      oninput="updateCategoryScore('${course.id}', ${ci}, 'earnedPoints', this.value)" /></td>
+                  <td><input class="score-input" type="number" min="0"
+                      value="${cat.totalPoints || 100}"
+                      placeholder="100"
+                      oninput="updateCategoryScore('${course.id}', ${ci}, 'totalPoints', this.value)" /></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div class="section-label">Or paste raw gradebook scores (optional — AI will map them)</div>
+          <textarea class="scores-area" id="scores-${course.id}"
+            placeholder="e.g. Exam 1: 88/100, HW1: 45/50, Quiz 2: 18/20...">${escHtml(course.scoresText || '')}</textarea>
+        </div>
+
+        <div class="action-row" style="margin-top:0.5rem">
+          <button class="btn btn-secondary" onclick="goBackToStep1('${course.id}')">
+            &larr; Back
+          </button>
+          <button class="btn btn-success" id="calc-btn-${course.id}"
+            onclick="mapAndCalculate('${course.id}')">
+            Map &amp; Calculate Grade
+          </button>
+        </div>
+        ${course.calcError ? `<div class="error-msg">${escHtml(course.calcError)}</div>` : ''}
+
+      </div>
+    </div>`;
+}
+
+// ── State mutations ───────────────────────────────────────────────────────────
+
 function addCourse() {
   state.courses.push({
     id: crypto.randomUUID(),
     name: '',
+    step: 1,
     syllabusText: '',
     scoresText: '',
     gradingScale: {},
@@ -115,7 +174,6 @@ function addCourse() {
     finalGrade: null,
     gpaPoints: null,
     parseError: null,
-    scoresError: null,
     calcError: null
   });
   renderCourses();
@@ -124,6 +182,16 @@ function addCourse() {
 function removeCourse(id) {
   state.courses = state.courses.filter(c => c.id !== id);
   calculateSemesterGpa();
+  renderCourses();
+}
+
+function editCourse(id) {
+  const course = state.courses.find(c => c.id === id);
+  if (!course) return;
+  course.finalGrade = null;
+  course.gpaPoints = null;
+  course.calcError = null;
+  course.step = 2;
   renderCourses();
 }
 
@@ -139,34 +207,56 @@ function updateCategoryScore(courseId, catIndex, field, value) {
   }
 }
 
-function setLoading(btnId, loading) {
+function confirmCategories(courseId) {
+  const course = state.courses.find(c => c.id === courseId);
+  if (course) { course.step = 2; renderCourses(); }
+}
+
+function resetParse(courseId) {
+  const course = state.courses.find(c => c.id === courseId);
+  if (!course) return;
+  course.categories = [];
+  course.parseError = null;
+  renderCourses();
+}
+
+function goBackToStep1(courseId) {
+  const course = state.courses.find(c => c.id === courseId);
+  if (!course) return;
+  course.step = 1;
+  course.calcError = null;
+  renderCourses();
+}
+
+// ── Loading helper ────────────────────────────────────────────────────────────
+
+function setLoading(btnId, loading, label) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
   btn.disabled = loading;
   if (loading) {
-    btn.dataset.originalText = btn.textContent;
-    btn.innerHTML = '<span class="spinner"></span> Loading...';
+    btn.dataset.originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> ' + (label || 'Loading...');
   } else {
-    btn.innerHTML = btn.dataset.originalText || btn.textContent;
+    btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
   }
 }
+
+// ── Step 1: Parse syllabus ────────────────────────────────────────────────────
 
 async function parseSyllabus(courseId) {
   const course = state.courses.find(c => c.id === courseId);
   if (!course) return;
-
   const syllabusEl = document.getElementById(`syllabus-${courseId}`);
   const syllabusText = syllabusEl ? syllabusEl.value : '';
   course.syllabusText = syllabusText;
   course.parseError = null;
-
   if (!syllabusText.trim()) {
     course.parseError = 'Please paste a syllabus first.';
     renderCourses();
     return;
   }
-
-  setLoading(`parse-btn-${courseId}`, true);
+  setLoading(`parse-btn-${courseId}`, true, 'Parsing...');
   try {
     const data = await apiCall('/api/syllabus/parse', {
       syllabusText,
@@ -188,66 +278,11 @@ async function parseSyllabus(courseId) {
   }
 }
 
-async function mapScores(courseId) {
+// ── Step 2: Map scores + calculate ───────────────────────────────────────────
+
+function syncScoreInputs(courseId) {
   const course = state.courses.find(c => c.id === courseId);
   if (!course) return;
-
-  const scoresEl = document.getElementById(`scores-${courseId}`);
-  const scoresText = scoresEl ? scoresEl.value : '';
-  course.scoresText = scoresText;
-  course.scoresError = null;
-
-  if (!scoresText.trim()) {
-    course.scoresError = 'Please paste score data first.';
-    renderCourses();
-    return;
-  }
-  if (course.categories.length === 0) {
-    course.scoresError = 'Parse a syllabus first to get categories.';
-    renderCourses();
-    return;
-  }
-
-  setLoading(`map-btn-${courseId}`, true);
-  try {
-    const data = await apiCall('/api/scores/map', {
-      rawScoresText: scoresText,
-      categories: course.categories
-    });
-    if (data.mappedScores) {
-      course.categories = course.categories.map(cat => {
-        const norm = s => s.toLowerCase().trim();
-        // Exact match first, then case-insensitive, then partial
-        let mapped = data.mappedScores.find(m => m.name === cat.name)
-          || data.mappedScores.find(m => norm(m.name) === norm(cat.name))
-          || data.mappedScores.find(m => norm(m.name).includes(norm(cat.name)) || norm(cat.name).includes(norm(m.name)));
-        if (mapped && (mapped.earnedPoints > 0 || mapped.totalPoints > 0)) {
-          return { ...cat, earnedPoints: mapped.earnedPoints, totalPoints: mapped.totalPoints };
-        }
-        return cat;
-      });
-    }
-  } catch (err) {
-    course.scoresError = err.message;
-  } finally {
-    setLoading(`map-btn-${courseId}`, false);
-    renderCourses();
-  }
-}
-
-async function calculateGrade(courseId) {
-  const course = state.courses.find(c => c.id === courseId);
-  if (!course) return;
-
-  course.calcError = null;
-
-  if (course.categories.length === 0) {
-    course.calcError = 'Parse a syllabus first to get categories.';
-    renderCourses();
-    return;
-  }
-
-  // Sync any unsaved input values from DOM before submitting
   course.categories.forEach((cat, ci) => {
     const card = document.getElementById(`card-${courseId}`);
     if (!card) return;
@@ -258,8 +293,146 @@ async function calculateGrade(courseId) {
       if (inputs[1]) cat.totalPoints = parseFloat(inputs[1].value) || 100;
     }
   });
+}
 
-  setLoading(`calc-btn-${courseId}`, true);
+async function mapAndCalculate(courseId) {
+  const course = state.courses.find(c => c.id === courseId);
+  if (!course) return;
+  course.calcError = null;
+  syncScoreInputs(courseId);
+
+  const scoresEl = document.getElementById(`scores-${courseId}`);
+  const scoresText = scoresEl ? scoresEl.value.trim() : '';
+  course.scoresText = scoresText;
+
+  setLoading(`calc-btn-${courseId}`, true, 'Mapping scores...');
+
+  if (scoresText) {
+    try {
+      const mapData = await apiCall('/api/scores/map', {
+        rawScoresText: scoresText,
+        categories: course.categories
+      });
+      if (mapData.mappedScores) {
+        course.categories = course.categories.map(cat => {
+          const norm = s => s.toLowerCase().trim();
+          const mapped = mapData.mappedScores.find(m => m.name === cat.name)
+            || mapData.mappedScores.find(m => norm(m.name) === norm(cat.name))
+            || mapData.mappedScores.find(m =>
+                norm(m.name).includes(norm(cat.name)) || norm(cat.name).includes(norm(m.name)));
+          if (mapped && (mapped.earnedPoints > 0 || mapped.totalPoints > 0)) {
+            return { ...cat, earnedPoints: mapped.earnedPoints, totalPoints: mapped.totalPoints };
+          }
+          return cat;
+        });
+      }
+    } catch (err) {
+      course.calcError = 'Score mapping failed: ' + err.message;
+      setLoading(`calc-btn-${courseId}`, false);
+      renderCourses();
+      return;
+    }
+    // Re-render so user sees updated values before modal check
+    renderCourses();
+  }
+
+  setLoading(`calc-btn-${courseId}`, false);
+
+  // Check for missing/zero earned scores
+  const missing = course.categories.filter(c => !c.earnedPoints || c.earnedPoints === 0);
+  if (missing.length > 0) {
+    showConfirmModal(courseId, missing);
+  } else {
+    await doCalculateGrade(courseId);
+  }
+}
+
+// ── Confirmation modal ────────────────────────────────────────────────────────
+
+function showConfirmModal(courseId, missing) {
+  const body = document.getElementById('modal-body');
+  const list = missing.map(c => `<li>${escHtml(c.name)}</li>`).join('');
+  body.innerHTML = `
+    <h3 class="modal-title">Some scores are missing</h3>
+    <p>${missing.length} categor${missing.length === 1 ? 'y has' : 'ies have'} no earned score entered:</p>
+    <ul class="missing-list">${list}</ul>
+    <p class="modal-hint">How would you like to proceed?</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel — Keep Editing</button>
+      <button class="btn btn-secondary" onclick="closeModal(); doCalculateGrade('${courseId}')">
+        Calculate As-Is
+      </button>
+      <button class="btn btn-primary" onclick="showWhatIfEditor('${courseId}')">
+        What-If Mode
+      </button>
+    </div>`;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+
+function showWhatIfEditor(courseId) {
+  const course = state.courses.find(c => c.id === courseId);
+  if (!course) return;
+  const body = document.getElementById('modal-body');
+  body.innerHTML = `
+    <h3 class="modal-title">What-If Mode</h3>
+    <p class="modal-hint">Enter projected scores for any missing categories:</p>
+    <table class="categories-table" style="margin-top:0.75rem">
+      <thead><tr><th>Category</th><th>Weight</th><th>Earned</th><th>Total</th></tr></thead>
+      <tbody>
+        ${course.categories.map((cat, ci) => `
+          <tr>
+            <td>${escHtml(cat.name)}</td>
+            <td>${(cat.weight * 100).toFixed(0)}%</td>
+            <td><input class="score-input" type="number" min="0"
+                value="${cat.earnedPoints > 0 ? cat.earnedPoints : ''}"
+                placeholder="0" id="wi-earned-${ci}" /></td>
+            <td><input class="score-input" type="number" min="0"
+                value="${cat.totalPoints || 100}"
+                placeholder="100" id="wi-total-${ci}" /></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="modal-actions" style="margin-top:1.25rem">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary"
+        onclick="applyWhatIfAndCalculate('${courseId}', ${course.categories.length})">
+        Calculate Grade
+      </button>
+    </div>`;
+}
+
+async function applyWhatIfAndCalculate(courseId, catCount) {
+  const course = state.courses.find(c => c.id === courseId);
+  if (!course) return;
+  for (let i = 0; i < catCount; i++) {
+    const e = document.getElementById(`wi-earned-${i}`);
+    const t = document.getElementById(`wi-total-${i}`);
+    if (e) course.categories[i].earnedPoints = parseFloat(e.value) || 0;
+    if (t) course.categories[i].totalPoints = parseFloat(t.value) || 100;
+  }
+  closeModal();
+  await doCalculateGrade(courseId);
+}
+
+function closeModal() {
+  document.getElementById('confirm-modal').classList.remove('open');
+}
+
+// Close modal on backdrop click
+document.getElementById('confirm-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ── Grade calculation ─────────────────────────────────────────────────────────
+
+async function doCalculateGrade(courseId) {
+  const course = state.courses.find(c => c.id === courseId);
+  if (!course) return;
+  course.calcError = null;
+
+  const btn = document.getElementById(`calc-btn-${courseId}`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Calculating...'; }
+
   try {
     const data = await apiCall('/api/grade/calculate', {
       sessionId: state.sessionId,
@@ -272,23 +445,26 @@ async function calculateGrade(courseId) {
     calculateSemesterGpa();
   } catch (err) {
     course.calcError = err.message;
-  } finally {
-    setLoading(`calc-btn-${courseId}`, false);
-    renderCourses();
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Map &amp; Calculate Grade'; }
   }
+  renderCourses();
 }
 
+// ── Semester GPA ──────────────────────────────────────────────────────────────
+
 function calculateSemesterGpa() {
-  const coursesWithGpa = state.courses.filter(c => c.gpaPoints !== null && c.gpaPoints !== undefined);
-  if (coursesWithGpa.length === 0) {
+  const graded = state.courses.filter(c => c.gpaPoints !== null && c.gpaPoints !== undefined);
+  if (graded.length === 0) {
     state.semesterGpa = null;
     document.getElementById('semester-gpa').textContent = '--';
     return;
   }
-  const avg = coursesWithGpa.reduce((sum, c) => sum + c.gpaPoints, 0) / coursesWithGpa.length;
+  const avg = graded.reduce((s, c) => s + c.gpaPoints, 0) / graded.length;
   state.semesterGpa = avg;
   document.getElementById('semester-gpa').textContent = avg.toFixed(2);
 }
+
+// ── API helper ────────────────────────────────────────────────────────────────
 
 async function apiCall(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -303,5 +479,5 @@ async function apiCall(path, body) {
   return res.json();
 }
 
-// Initialize
+// ── Init ──────────────────────────────────────────────────────────────────────
 renderCourses();
