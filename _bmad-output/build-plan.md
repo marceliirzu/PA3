@@ -280,7 +280,7 @@
 
 ## Phase 13 — Local Integration Test
 
-- [ ] **13.1** Set env vars locally: `CLAUDE_API_KEY` and `MYSQL_CONNECTION_STRING`
+- [x] **13.1** Set env vars locally: `CLAUDE_API_KEY` and `MYSQL_CONNECTION_STRING` — set in Railway dashboard (production env)
 - [x] **13.2** Run `dotnet build` from `src/GpaCalculator/` — 0 errors confirmed
 - [ ] **13.3** Run `dotnet run` — API starts on port 5000 (requires CLAUDE_API_KEY)
 - [ ] **13.4** Open `frontend/index.html` directly in browser (set `API_BASE = 'http://localhost:5000'`)

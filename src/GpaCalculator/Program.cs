@@ -45,8 +45,7 @@ builder.Services.AddScoped<IClaudeService, ClaudeService>();
 builder.Services.AddScoped<IRagService, RagService>();
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
@@ -64,8 +63,7 @@ catch (Exception ex)
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi(); // /openapi/v1.json
 }
 
 // CORS must come before routing/controllers
