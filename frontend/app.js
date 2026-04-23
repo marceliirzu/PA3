@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'https://pa3-production.up.railway.app';
 
 const state = {
   sessionId: crypto.randomUUID(),
