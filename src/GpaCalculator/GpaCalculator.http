@@ -1,0 +1,6 @@
+@GpaCalculator_HostAddress = http://localhost:5008
+
+GET {{GpaCalculator_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
