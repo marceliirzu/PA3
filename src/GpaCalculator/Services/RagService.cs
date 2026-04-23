@@ -18,14 +18,15 @@ public class RagService : IRagService
         var words = courseName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length == 0) return new List<SyllabusTemplate>();
 
-        var query = _db.SyllabusTemplates.AsQueryable();
-        var results = await query
-            .Where(t => words.Any(w => t.CourseName.Contains(w)))
+        var recent = await _db.SyllabusTemplates
             .OrderByDescending(t => t.CreatedAt)
-            .Take(limit)
+            .Take(50)
             .ToListAsync();
 
-        return results;
+        return recent
+            .Where(t => words.Any(w => t.CourseName.Contains(w, StringComparison.OrdinalIgnoreCase)))
+            .Take(limit)
+            .ToList();
     }
 
     public async Task<int> SaveTemplateAsync(string courseName, string rawText, string parsedCategoriesJson)
