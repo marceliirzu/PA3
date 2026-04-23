@@ -141,13 +141,22 @@ public class ClaudeService : IClaudeService
 
             capturedToolUse = toolUse;
 
-            // Add assistant response
-            messages.Add(new Message(new List<MessageResponse> { response }));
+            // Add assistant response (contains tool_use block)
+            messages.Add(new Message { Role = RoleType.Assistant, Content = response.Content });
 
             // Add tool result
-            var resultFn = new CF(toolUse.Name, "", (JsonNode?)null);
-            resultFn.Id = toolUse.Id;
-            messages.Add(new Message(resultFn, "Mappings accepted.", false, null));
+            messages.Add(new Message
+            {
+                Role = RoleType.User,
+                Content = new List<ContentBase>
+                {
+                    new ToolResultContent
+                    {
+                        ToolUseId = toolUse.Id,
+                        Content = new List<ContentBase> { new TextContent { Text = "Mappings accepted." } }
+                    }
+                }
+            });
 
             parameters.Messages = messages;
             response = await _client.Messages.GetClaudeMessageAsync(parameters);
@@ -334,13 +343,22 @@ public class ClaudeService : IClaudeService
                 toolResult = "ok";
             }
 
-            // Add assistant response with tool use
-            messages.Add(new Message(new List<MessageResponse> { response }));
+            // Add assistant response (contains tool_use block)
+            messages.Add(new Message { Role = RoleType.Assistant, Content = response.Content });
 
-            // Add tool result as user message
-            var resultFn = new CF(toolUse.Name, "", (JsonNode?)null);
-            resultFn.Id = toolUse.Id;
-            messages.Add(new Message(resultFn, toolResult, false, null));
+            // Add tool result
+            messages.Add(new Message
+            {
+                Role = RoleType.User,
+                Content = new List<ContentBase>
+                {
+                    new ToolResultContent
+                    {
+                        ToolUseId = toolUse.Id,
+                        Content = new List<ContentBase> { new TextContent { Text = toolResult } }
+                    }
+                }
+            });
 
             parameters.Messages = messages;
             response = await _client.Messages.GetClaudeMessageAsync(parameters);
