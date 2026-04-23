@@ -343,7 +343,8 @@ Call map_scores_to_categories now.
 
                 gpaPoints = grade switch
                 {
-                    "A+" or "A" => 4.0,
+                    "A+" => 4.33,
+                    "A" => 4.0,
                     "A-" => 3.7,
                     "B+" => 3.3,
                     "B" => 3.0,
