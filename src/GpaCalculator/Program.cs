@@ -61,6 +61,17 @@ catch (Exception ex)
     app.Logger.LogWarning("DB EnsureCreated failed: {Message}", ex.Message);
 }
 
+app.UseExceptionHandler(errApp =>
+{
+    errApp.Run(async ctx =>
+    {
+        var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+        ctx.Response.StatusCode = 500;
+        ctx.Response.ContentType = "application/json";
+        await ctx.Response.WriteAsJsonAsync(new { error = ex?.Message ?? "Internal server error" });
+    });
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi(); // /openapi/v1.json
